@@ -1,0 +1,81 @@
+Screen 		db "KiddieOS System",0
+Str1 		db "Cursor X: ",0
+Str2 		db "Cursor Y: ",0
+
+Informations:
+	.Info1 	db "Testes de informacoes",0 
+	.Info2 	db "FileType: OSF",0
+	.Info3 	db "FileSystem: FAT16",0
+
+Bytes  db " Bytes",0
+
+mov 	dh, 10
+	mov 	dl, 40 
+	call 	Move_Cursor
+	call 	Hide_Cursor
+	mov 	si, Screen
+	call 	Print_String
+	call 	Show_Cursor
+	call 	Break_Line
+	
+
+	mov 	si, Str1
+	call 	Print_String
+	call 	Get_Cursor
+	mov 	al, dh
+	call 	Print_Hexa_Value8
+	call 	Break_Line
+	mov 	si, Str2
+	call 	Print_String
+	mov 	al, dl
+	call 	Print_Hexa_Value8
+	call 	Break_Line
+	mov 	ax, dx
+	call 	Print_Hexa_Value16
+	call 	Break_Line
+	mov 	eax, 0xFFFF
+	call 	Print_Dec_Value32
+	call 	Break_Line
+	add 	eax, 0xEE6B2800
+	call 	Print_Dec_Value32
+	call	Clear_Screen
+	mov		cx, 0x0511
+	mov 	dx, 0x0F3F
+	mov 	bh, 0000_1001b
+	call 	Create_Panel
+	mov 	dx, cx
+	inc 	dh
+	inc 	dl
+	mov 	si, Informations
+	mov 	cx, 3
+	call	Write_Info
+	mov 	ax, 0x07C0
+	mov 	es, ax
+	mov 	ax, 0x200
+	mov 	di, ax
+	mov 	cx, 3
+	add 	dh, 4
+PrintFiles:
+	add 	di, 32
+	call 	Move_Cursor
+	call	Print_Name_File
+	mov 	ah, 0x0E
+	mov 	al, ' '
+	int 	0x10
+	xor 	eax, eax
+	mov 	eax, dword[es:di + 28]
+	call 	Print_Dec_Value32
+	mov 	si, Bytes
+	call 	Print_String
+	mov 	ax, 0x0E20
+	int 	0x10
+	mov 	ax, word[es:di + 16]
+	call 	Print_Fat_Date     ; DD/MM/YYYY
+	mov 	ax, 0x0E20
+	int 	0x10
+	mov 	ax, word[es:di + 14]
+	call 	Print_Fat_Time	   ; HH:MM:SS
+	inc 	dh
+	loop 	PrintFiles
+
+

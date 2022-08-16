@@ -1,0 +1,163 @@
+; ================================================================================
+; MyOS - Monitor Library Rotine
+; Created by João Gabriel
+; Version 1.0.0
+; ================================================================================
+
+%IFNDEF __MONITOR_LIB__
+%DEFINE __MONITOR_LIB__
+
+; Main Strings ___________________________________________________________________
+
+NameSystem db "Welcome to MyOS", 0
+NameEmpresa db "MyHighSoft presents...", 0 
+
+; ________________________________________________________________________________
+
+; Window Configurations __________________________________________________________
+
+Window_Bar 			dw 3000h
+Window_Width		dw 3001h
+Window_Height		dw 3003h
+Window_PositionX	dw 3005h
+Window_PositionY	dw 3007h
+Window_Bar_Color	dw 300Ah
+Window_BackColor	dw 300Bh
+ButtonClose			dw 300Ch
+ButtonMaximize		dw 300Dh
+ButtonMinimaze		dw 300Eh
+;StateWindowBar		dw 0000h
+Count				dw 0000h
+
+BackWidth			dw 0000h
+BackHeight			dw 0000h
+BackColor			db 9
+Pagination			db 0
+CursorX				db 15
+CursorY				db 12
+State				db 0
+Key					db 0
+
+
+; ________________________________________________________________________________
+
+;Rotine Library __________________________________________________________________
+
+; Definir o modo de vídeo e configarar posição padrão
+VGA.SetVideoMode:
+	mov ah, 00h
+	mov al, 13h
+	int 10h
+	mov ax, 320
+	mov WORD[BackWidth], ax
+	mov ax, 200
+	mov WORD[BackHeight], ax
+	call DrawPixelConfig
+ret
+
+; Funcao de gravar pixels na tela
+DrawPixelConfig:
+	mov ah, 0ch
+	mov al, [BackColor]
+	mov cx, 0
+	mov dx, 0
+ret 
+
+PrintString:
+	mov ah, 09h
+	mov bh, [Pagination]
+	mov cx, 1
+	mov al, [si]
+	print:
+		int 10h
+		inc si
+		call MoveCursor
+		mov ah, 09h
+		mov al, [si] 
+		cmp al, 0
+		jne print
+ret
+
+MoveCursor:
+	mov ah, 02h
+	mov bh, [Pagination]
+	inc dl
+	int 10h
+ret 
+
+EffectInit:
+	mov bl, 7
+	start:
+		mov dh, [CursorY]
+		mov dl, [CursorX]
+		call MoveCursor
+		call Waiting
+		mov si, NameEmpresa
+		call PrintString
+		call WaitMinute
+		mov si, NameSystem
+		call PrintString
+		pusha
+		mov bl, [State]
+		cmp bl, 0
+		je Increment
+		jmp Decrement
+	Increment:
+		popa
+		inc bl
+		call Waiting
+		cmp bl, 8
+		jne start
+		pusha
+		mov bl, 1
+		mov byte[State], bl
+		popa
+		jmp start
+	
+	Decrement:
+		popa
+		dec bl
+		call Waiting
+		cmp bl, 7
+		jne start
+		pusha
+		mov bl, 0
+		mov byte[State], bl
+		mov bx, [Count]
+		inc bx
+		mov WORD[Count], bx
+		cmp bx, 50000
+		jne ReturnLoop
+		jmp ReturnProg
+		
+	ReturnLoop:
+		popa
+		jmp start
+		
+	ReturnProg:
+		popa
+		ret
+ret 
+
+Waiting:
+	pusha
+	mov bx, 1
+	time:
+		inc bx
+		cmp bx, 50
+		jne time
+	popa
+ret
+	
+WaitMinute:
+	pusha
+	mov cx, 0000h
+	mov dx, 0000h
+	int 15h
+	popa
+ret
+; ________________________________________________________________________________
+
+
+
+%ENDIF
