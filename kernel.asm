@@ -220,22 +220,10 @@ SYSTEM_INFORMATION:
 	
 	
 SHELL16_INIT:
-	mov 	si, string2
-	call 	Print_String
-	mov 	ah, 00h
-	int 	16h
-	jmp 	Back_Blue_Screen
-
-string2 db "Shell16 Init",0
+	jmp 	$
 
 WMANAGER_INIT: 
-	mov 	si, string3
-	call 	Print_String
-	mov 	ah, 00h
-	int 	16h
-	jmp 	Back_Blue_Screen
-
-string3 db "Wmanager Init",0
+	jmp 	$
 	
 
 ; _____________________________________________
