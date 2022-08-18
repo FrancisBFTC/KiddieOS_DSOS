@@ -1,45 +1,49 @@
 [BITS 16]
-[ORG 0000h]
+[ORG 0x0000]
 
+TOTALSECTORS      EQU   0x00EE2000
+TRACK_PER_HEAD    EQU   971
+NUM_HEADS         EQU   255
+SECTORS_PER_TRACK EQU   63
 
 jmp Boot_Begin
 
-LBASIZE   EQU  61173  ; ((Cylinder x Sector))
-
-BUFFER_NAME           db "MSDOS5.0"    ;MSDOS5.0
+BUFFER_NAME    db "MSDOS5.0"   ; <- compatibilidade
 BPB:
-BytesPerSector        dw 0x0200
-SectorsPerCluster     db 1   ;8
-ReservedSectors       dw 4      ;4 -> funcionando
-TotalFATs             db 0x02
-MaxRootEntries        dw 0x0200
-TotalSectorsSmall     dw 0x0000
-MediaDescriptor       db 0xF8    ; 0xF8
-SectorsPerFAT         dw 246     ; 246   
-SectorsPerTrack       dw 63      ; 63  
-NumHeads              dw 255     ; 255
-HiddenSectors         dd 0x00000003   ;5  3 -> funcionando
-TotalSectorsLarge     dd 0x00EE2000
-DriveNumber           db 0x00    
-Flags                 db 0x00
-Signature             db 0x28   ; <- alterar para 0x28
-BUFFER_VOLUME_ID      dd 0x80808080
-VolumeLabel           db "KIDDIEOS   "
-SystemID              db "FAT16   "  
+	BytesPerSector      dw 0x0200  ; <- 512 bytes por setor
+	SectorsPerCluster   db 1       ; <- Setores por cada cluster
+	ReservedSectors     dw 4       ; <- Setores reservados + setores escondidos
+	TotalFATs           db 2       ; <- Fat original + a sua cópia
+	MaxRootEntries      dw 0x0200  ; <- 512 entradas de diretórios
+    TotalSectorSmall    dw 0x0000 ; <- Cilindros x Setores (FAT16)
+	MediaDescriptor     db 0xF8    ; <- Tipo de mídia Disquete
+    SectorsPerFAT       dw 246     ; <- Setores por FAT
+	SectorsPerTrack     dw SECTORS_PER_TRACK      ; <- Setores por trilha
+	NumHeads            dw NUM_HEADS     ; <- Quantidade de cabeçotes
+	HiddenSectors       dd 0x00000003    ; <- Setores escondidos
+	TotalSectorsLarge   dd TOTALSECTORS  ; <- Setores largos (FAT32)
+EBPB:
+	DriveNumber         db 0x00        ; <- Primeira ordem de Boot
+	Flags               db 0x00        ; <- Reservado para o Windows NT
+	Signature           db 0x28        ; <- Assinatura
+	BUFFER_VOLUME_ID    dd 0x80808080  ; <- ID do Volume/partição
+	VolumeLabel         db "KIDDIEOS   "   ; <- Label do disco
+	SystemID            db "FAT16   "      ; <- Tipo de sistema de arquivos
+	
+DAPSizeOfPacket    db 10h
+DAPReserved        db 00h
+DAPTransfer        dw 0001h
+DAPBuffer          dd 00000000h
+DAPStart           dq 0000000000000000h 
 
-DAPSizeOfPacket db 10h
-DAPReserved     db 00h
-DAPTransfer     dw 0001h
-DAPBuffer       dd 00000000h
-DAPStart        dq 0000000000000000h
-
-DATASTART      dw  0x0000
-FATSTART       dw  0x0000
-ROOTDIRSTART   EQU (BUFFER_NAME)
-ROOTDIRSIZE    EQU (BUFFER_NAME+4)
+DATASTART    DW  0x0000
+FATSTART     DW  0x0000
+ROOTDIRSTART EQU (BUFFER_NAME)
+ROOTDIRSIZE  EQU (BUFFER_NAME+4)
 
 BAD_CLUSTER      EQU 0xFFF7
-END_OF_CLUSTER   EQU 0xFFF8
+END_OF_CLUSTER1	 EQU 0xFFF8
+END_OF_CLUSTER2	 EQU 0xFFFF
 FCLUSTER_ENTRY   EQU 0x001A
 FSIZE_ENTRY      EQU 0x001C
 ROOT_SEGMENT     EQU 0x07C0
@@ -48,166 +52,156 @@ KERNEL_SEGMENT   EQU 0x0800
 DIRECTORY_SIZE   EQU 32
 EXT_LENGTH       EQU 3
 NAME_LENGTH      EQU 8
-  
-Extension       db "OSF"
-ClusterFile     dw  0x0000
-FileFound       db 0
+
+Extension 	  db "OSF"  ; Operating System File
+ClusterFile   dw 0x0000
+FileFound     db 0
 
 Boot_Begin:
-    cli
-    mov  ax, ROOT_SEGMENT
-    mov  ds, ax
-    mov  es, ax
-    mov  ax, 0x0000
-    mov  ss, ax
-    mov  sp, 0x6000
-    sti
+	cli
+	mov 	ax, ROOT_SEGMENT
+	mov 	ds, ax
+	mov 	es, ax
+	mov 	ax, 0x0000
+	mov 	ss, ax
+	mov 	sp, 0x6000
+	sti
 	
-	mov ax, 3
-	int 0x10
+	mov 	byte[DriveNumber], dl
+	mov 	ax, 02h
+	int 	0x10
 	
-	mov byte [DriveNumber], dl
+	call 	LoadRootDirectory
+	call 	LoadFAT
+	call 	SearchFile
+	mov 	dl, byte[DriveNumber]
 	
-	call LoadRootDirectory
-	call LoadFAT
-	call SearchFile
-	mov dl, byte [DriveNumber]
-	
-	
-	JMP 0800h:0000H
-	
+	jmp 	KERNEL_SEGMENT:0x0000
 	
 LoadRootDirectory:
-	xor  cx, cx
-	mov  ax, WORD [ReservedSectors]  
-    add  ax, WORD [HiddenSectors]
-	mov  WORD [FATSTART], ax
+	; InicioDoFat = SetoresReservados + SetoresEscondidos
+	xor 	cx, cx
+	mov 	ax, word[ReservedSectors]
+	add 	ax, word[HiddenSectors]
+	mov 	word[FATSTART], ax      ; InicioDoFat = 7
 	
-    mov  ax, DIRECTORY_SIZE
-    mul  WORD [MaxRootEntries]
-    div  WORD [BytesPerSector] 
-    mov  WORD [ROOTDIRSIZE], ax  ; 32 setores
-    mov cx, ax                   ; CX = 32
+	; TamanhoDiretorioRaiz = (TamanhoEntradaDiretorios x QuantidadeEntradas) / BytesPorSetor
+	mov 	ax, DIRECTORY_SIZE
+	mul 	word[MaxRootEntries]
+	div 	word[BytesPerSector]
+	mov 	word[ROOTDIRSIZE], ax
+	mov 	cx, ax           ; TamanhoDiretorioRaiz = 32 setores
 	
-    xor ax, ax
-    mov  al, BYTE [TotalFATs]
-    mul  WORD [SectorsPerFAT]   
-	add  ax, WORD [FATSTART]
-    
-	;sub ax, 1 ; <- Setor Escondido da MBR
-    mov word [ROOTDIRSTART], ax   ; Setor 498
-	push ax
-    add  ax, cx
-    mov  WORD [DATASTART], ax     ; Setor 530
+	; InicioDiretorio = (SetoresPorFat x QuantidadeFats) + InicioDoFat
+	xor 	ax, ax
+	mov 	al, byte[TotalFATs]
+	mul 	word[SectorsPerFAT]
+	add 	ax, word[FATSTART]   
+	mov 	word[ROOTDIRSTART], ax   ; InicioDiretorio = 499
 	
-
-    pop ax                        ; setor inicial para ler
-    mov  bx, 0x0200
-    call  ReadLogicalSectors
+	; InicioAreaDados = InicioDiretorio + TamanhoDiretorioRaiz
+	push 	ax
+	add 	ax, cx
+	mov 	word[DATASTART], ax  ; InicioAreaDados = 531
+	
+	;mov 	ax, ROOT_SEGMENT
+	;mov 	es, ax
+	pop 	ax
+	
+	; Carrega em 0x07C0:0x0200 512 entradas do setor inicial 499
+	mov 	bx, 0x0200
+	call 	ReadLogicalSectors
 ret
 
 LoadFAT:
-	mov ax, FAT_SEGMENT
-    mov es, ax 
+	mov 	ax, FAT_SEGMENT
+	mov 	es, ax
 	
-	mov ax, WORD [FATSTART]  ; Setor Lógico inicial para ler
-	mov  cx, (246/2)         ; WORD [SectorsPerFAT]  ;  Metade da fat.
-    mov  bx, 0x0200                           ;  Determinando o offset da FAT.
-    call  ReadLogicalSectors
-ret	
+	; Carrega em 0x17C0:0x0200 123 Setores do FAT do setor inicial 7
+	mov 	ax, word[FATSTART]
+	mov 	cx, (246/2)
+	mov 	bx, 0x0200
+	call 	ReadLogicalSectors
+ret
 	
 SearchFile:
-	mov ax, ROOT_SEGMENT
-	mov es, ax
-    mov  cx, WORD [MaxRootEntries]    ; Instrução LOOP decrementa CX até 0
-    mov  di, 0x0200                   ; Determinando o offset do root carregado
-	add di, NAME_LENGTH
-	xor bx, bx
+	mov 	ax, ROOT_SEGMENT
+	mov 	es, ax
+	mov 	cx, word[MaxRootEntries]
+	mov 	di, 0x0200  
+	add 	di, NAME_LENGTH
+	xor 	bx, bx
 _Loop:
-    push  cx
-    mov  cx, EXT_LENGTH       ; Extension size.
-    mov  si, Extension    	  ; NameFile to find.
-    push  di
-	call VerifyExt
-	pop  di
-    call  LoadFile          
-    pop  cx
-    add  di, DIRECTORY_SIZE   ; Queue next directory entry (32).
-    loop _Loop
-	cmp byte[FileFound], 0
-	je BOOT_FAILED
-ret
-
-VerifyExt:
-	Verify:
-		mov al, [es:di]
-		cmp al, [ds:si]
-		jne RetVerify
-		inc si
-		inc di
-		loop Verify
-RetVerify:
+	push 	cx
+	mov 	cx, EXT_LENGTH
+	mov 	si, Extension
+	push 	di
+	repe 	cmpsb
+	pop 	di
+	jnz 	ContSearch
+	call 	LoadFile
+ContSearch:
+	pop 	cx
+	add 	di, DIRECTORY_SIZE
+	loop 	_Loop
+	cmp 	byte[FileFound], 0
+	je 		BOOT_FAILED
 ret
 		
 	
-	
+; Carregue arquivos OSF a partir do Endereço 0x0800:0x0000
 LoadFile:
-	push bx
-	push di
-	push bx
-	cmp cl, 0
-	jne RetLoadFile
+	push 	bx 		; Linha adicionada
+	push 	di
+	push 	bx
 	
+	mov 	byte[FileFound], 1
+	sub 	di, NAME_LENGTH
+	mov 	dx, word[es:di + FCLUSTER_ENTRY]
+	mov 	word[ClusterFile], dx
 	
-	mov byte[FileFound], 1
+	mov 	ax, KERNEL_SEGMENT
+	mov 	es, ax
 	
-	sub di, NAME_LENGTH
-	mov dx, WORD [es:di + FCLUSTER_ENTRY]  ; Cluster do arquivo no FAT
-    mov WORD [ClusterFile], dx
-	
-    mov ax, KERNEL_SEGMENT
-    mov es, ax
-	
-    mov ax, FAT_SEGMENT
-    mov gs, ax
+	mov 	ax, FAT_SEGMENT
+	mov 	gs, ax
 	
 ReadDataFile:
-    pop  bx    ; Buffer do arquivo  
+	pop 	bx
 	
-    mov  ax, WORD [ClusterFile]   
-    call  ClusterLBA              		 ; Conversão de Cluster para LBA.
-    xor  cx, cx
-    mov  cl, BYTE [SectorsPerCluster]    ; 1 Setor para ler
-    call  ReadLogicalSectors
-
-    push bx
-    
-	; Calculando o deslocamento do próximo Cluster do arquivo
-    mov ax, WORD [ClusterFile]    ; identify current cluster
-    add ax, ax                	  ; 16 bit(2 byte) FAT entry
-    mov bx, 0x0200                ; location of FAT in memory
-    add bx, ax                    ; index into FAT    
-    mov dx, WORD [gs:bx]          ; read two bytes from FAT
-    mov  WORD [ClusterFile], dx   ; DX está com o próximo Cluster
+	mov 	ax, word[ClusterFile]
+	call 	ClusterLBA
+	xor 	cx, cx
+	mov 	cl, byte[SectorsPerCluster]
+	call 	ReadLogicalSectors
 	
-    cmp  dx, END_OF_CLUSTER    ; Ou 0xFFFF
-    jne  ReadDataFile
+	push 	bx
+	mov 	ax, word[ClusterFile]
+	add 	ax, ax
+	mov 	bx, 0x0200
+	add 	bx, ax
+	mov 	dx, word[gs:bx]
+	mov 	word[ClusterFile], dx
 	
-	pop bx
-	pop di
-	pop bx
+	cmp 	dx, END_OF_CLUSTER1
+	je 		End_Of_File
+	cmp 	dx, END_OF_CLUSTER2
+	je 		End_Of_File
 	
-	mov ax, 0x07C0
-	mov es, ax
+	jmp 	ReadDataFile
 	
-	mov edx, DWORD[es:di + (FSIZE_ENTRY - NAME_LENGTH)]
-	add bx, dx
-	add bx, 2
-ret
-RetLoadFile:
-    pop bx
-	pop di
-	pop bx
+	
+End_Of_File:
+	pop 	bx
+	pop 	di
+	pop 	bx 		; Linha adicionada
+	
+	mov 	ax, ROOT_SEGMENT
+	mov 	es, ax
+	
+	mov 	edx, dword[es:di + (FSIZE_ENTRY - NAME_LENGTH)]
+	add 	bx, dx
+	add 	bx, 2
 ret
 	
 	

@@ -6,7 +6,6 @@
 
 jmp 	Os_Shell_Setup
 
-FileShell db "Shell16_String",0
 
 ; VARIAVEIS DE CORES PADRÕES
 Background_Color 	db 0001_1111b	; Blue_White

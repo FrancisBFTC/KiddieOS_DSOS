@@ -189,9 +189,7 @@ Kernel_Menu:
 	
 SHELL16_INIT:
 
-	mov 	si, SHELL16+3
-	call 	Print_String
-	jmp 	$
+	jmp 	0x0800:SHELL16
 
 WMANAGER_INIT: 
 	jmp 	$
