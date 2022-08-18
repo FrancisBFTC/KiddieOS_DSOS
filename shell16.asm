@@ -1,8 +1,8 @@
 %INCLUDE "Hardware/memory.lib"
 %INCLUDE "Hardware/kernel.lib"
+%INCLUDE "Hardware/info.lib"
 [BITS SYSTEM]
 [ORG SHELL16]
-
 
 jmp 	Os_Shell_Setup
 
@@ -50,10 +50,12 @@ Os_Shell_Setup:
 		call 	Create_Panel
 	List_Commands_Panel:
 		mov 	word[SavePositionLeft], cx
-		
-		; TODO: Listar comandos no painel esquerdo
-		; na próxima aula
-		
+		mov 	dx, cx
+		mov 	byte[CounterList], 0
+		mov 	byte[Selection], ch
+		mov 	cx, COUNT_COMMANDS
+		mov 	si, Vector.CMD_Names
+		call 	Write_Info
 	Back_White_Right:
 		mov 	bh, [Backpanel_Color]
 		mov 	cx, 0x0545 		; CH = 05, CL = 69
@@ -65,7 +67,30 @@ Os_Shell_Setup:
 		mov 	cx, 0x1800 		; CH = 24, CL = 00
 		mov 	dx, 0x1950 		; DH = 25, CL = 80
 		call 	Create_Panel
-		jmp 	$
+	
+Print_Labels:
+	mov 	dx, 0x011E 	 ; DH = 01, DL = 30
+	call 	Move_Cursor
+	mov 	si, NameSystem
+	call 	Print_String
+	jmp 	$
+		
+				
+		
+		
+NameSystem 	db "KiddieOS Shell ",VERSION,0
+
+
+Vector:
+
+	.CMD_Names:
+		db "exit"	,0,	"reboot" ,0,	"start"	,0,	"bpb"		,0,	"lf"	,0
+		db "clean" 	,0, "read" 	 ,0,	"cd" 	,0, "assign"	,0, "help"  ,0
+		db "fat" 	,0, "hex"	 ,0,	"disk"  ,0
+	
+	.CMD_Funcs:
+		times 	13	DW 	0x0000
+		COUNT_COMMANDS EQU 	($ - .CMD_Funcs) / 2
 		
 		
 		

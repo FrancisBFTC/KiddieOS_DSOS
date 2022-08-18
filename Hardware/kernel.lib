@@ -7,6 +7,7 @@
 %IFNDEF __KERNEL_LIB__
 %DEFINE __KERNEL_LIB__
 
+
 %DEFINE Print_Name_File 	0003h
 %DEFINE Print_Hexa_Value16  0006h
 %DEFINE Print_Hexa_Value8 	0009h

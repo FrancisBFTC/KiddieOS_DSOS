@@ -1,6 +1,8 @@
 %INCLUDE "Hardware/memory.lib"
+%INCLUDE "Hardware/info.lib"
 [BITS SYSTEM]
 [ORG KERNEL]
+
 
 OS_VECTOR_JUMP:
 	jmp 	OSMain				; 0000h (Chamado pela VBR)
@@ -215,7 +217,7 @@ SYSTEM_INFORMATION:
 	
 	Informations:
 		System_Name 	db "System Name  : KiddieOS",0
-		Version 		db "Version      : v1.2.1",0
+		Version 		db "Version      : ",VERSION,0
 		Author 			db "Author:      : Francis",0
 		Arquitecture 	db "Arquitecture : 16-bit (x86)",0
 		FileSystem 		db "File System  : FAT16",0
