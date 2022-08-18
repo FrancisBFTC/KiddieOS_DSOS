@@ -186,6 +186,15 @@ Kernel_Menu:
 		call 	Create_Panel
 		pop 	dx
 	ret
+	
+SHELL16_INIT:
+
+	mov 	si, SHELL16+3
+	call 	Print_String
+	jmp 	$
+
+WMANAGER_INIT: 
+	jmp 	$
 		
 SYSTEM_INFORMATION:
 	mov 	bh, 0010_1111b 	; Green_White
@@ -218,12 +227,6 @@ SYSTEM_INFORMATION:
 		Lang 			db "Language     : English (US)",0
 		DateTime 		db "Date/Time    : 11/08/2022 18:35",0
 	
-	
-SHELL16_INIT:
-	jmp 	$
-
-WMANAGER_INIT: 
-	jmp 	$
 	
 
 ; _____________________________________________

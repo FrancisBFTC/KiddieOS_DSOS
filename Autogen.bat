@@ -7,21 +7,23 @@ cd C:\KiddieOS_DSOS\
 setlocal enabledelayedexpansion
 
 
-set QuantFile=5
+set QuantFile=6
 
 set Drive=6
 
 set file1=kernel
 set file2=window
-set file3=keyboard
-set file4=fwriter
+set file3=fwriter
+set file4=shell16
 set file5=serial
+set file6=keyboard
 
 set filebin1=Binary\%file1%.osf
 set filebin2=Binary\%file2%.osf
-set filebin3=Driver\%file3%.drv
+set filebin3=Binary\%file3%.osf
 set filebin4=Binary\%file4%.osf
 set filebin5=Driver\%file5%.drv
+set filebin6=Driver\%file6%.drv
 
 set VHD=KiddieOS
 set LibFile=Hardware\memory.lib
@@ -242,7 +244,7 @@ GOTO:EOF
 :VHDCreate
 	cecho {0A}Mounting VHD File...{\n}
 	cecho {0B}
-	imdisk -a -f %ImageFile% -s 33554432 -m Z:
+	imdisk -a -f %ImageFile% -s 33554432 -m W:
 	set i=0
 	
 	:Creating
@@ -253,15 +255,15 @@ GOTO:EOF
 		call set Bin=%%%Var3%%%
 		
 		cecho {0B}Adding '%Bin%' to the VHD file{\n}
-		copy %BinFile% Z:
+		copy %BinFile% W:
 		
 		if %i% NEQ %QuantFile% goto Creating
 		
-		xcopy /I /E KiddieOS Z:\KiddieOS
+		xcopy /I /E KiddieOS W:\KiddieOS
 		
 		cecho {0A}Dismounting VHD File... {\n}
 		cecho {0B}
-		imdisk -D -m Z:
+		imdisk -D -m W:
 		
 		cecho {0A}{\n}The '%VHD%.vhd' was created successfully!{\n\n}
 GOTO:EOF
