@@ -215,7 +215,7 @@ SYSTEM_INFORMATION:
 	
 	Informations:
 		System_Name 	db "System Name  : KiddieOS",0
-		Version 		db "Version      : v1.2.0",0
+		Version 		db "Version      : v1.2.1",0
 		Author 			db "Author:      : Francis",0
 		Arquitecture 	db "Arquitecture : 16-bit (x86)",0
 		FileSystem 		db "File System  : FAT16",0
