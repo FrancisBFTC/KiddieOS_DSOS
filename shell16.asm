@@ -73,12 +73,50 @@ Print_Labels:
 	call 	Move_Cursor
 	mov 	si, NameSystem
 	call 	Print_String
+Prt_Cmd:
+	mov 	dx, 0x0400
+	call 	Move_Cursor
+	mov 	si, CommandsStr
+	call 	Print_String
+Prt_Info:
+	mov 	dx, 0x0445
+	call 	Move_Cursor
+	mov 	si, InfoStr
+	call 	Print_String
+Prt_Help:
+	mov 	dx, 0x1701
+	mov 	cx, 2
+	mov 	si, HelpStr
+	call 	Write_Info
+Cursor_Commands:
+	; TODO: Regras de verificação de Cursor
+	mov 	dx, 0x050C
+	call 	Move_Cursor
+Print_Access:
+	; TODO: Salvar limite de Cursor
+	mov 	si, LetterDisk
+	call 	Print_String
+	mov 	si, FolderAccess
+	call 	Print_String
+	mov 	si, SymbolCommands
+	call 	Print_String
 	jmp 	$
-		
-				
+	
+	; TODO: Preparação para Editor do Shell
 		
 		
 NameSystem 	db "KiddieOS Shell ",VERSION,0
+CommandsStr db "Commands",0
+InfoStr 	db "Information",0
+HelpStr:
+	db 	"KEY COMMANDS -> ESC : Goto Commands/Editor | UP/DOWN : Select Command |",0
+	db  "ENTER : Choose Command | F1,F2,F3,F4,F5,F6 : Update Layouts",0
+
+LetterDisk		db "K:",0
+FolderAccess:
+	db '\'
+	times 150 db 0
+SymbolCommands	db ">",0 		
 
 
 Vector:
