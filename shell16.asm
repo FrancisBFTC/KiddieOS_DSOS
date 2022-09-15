@@ -21,7 +21,31 @@ SavePositionLeft 	dw 0x0000
 CounterList 	db 0
 Selection 		db 0
 
+; VARIAVEIS PARA ROLAGEM DO EDITOR
+CursorRaw 	db 5
+CursorCol 	db 12
+LimitCursorBeginX 	db 0
+LimitCursorFinalY 	db 22
 
+; VARIAVEIS DE ACESSO DE PASTAS
+CounterAccess 	db 0x0001
+Quant 			db 0
+CmdWrite 		db 0
+QuantDirs 		db 0
+
+; STRINGS DE COMANDOS
+SaveAddressString 	dw 0x0000
+
+; BUFFER DE TECLAS E ARGUMENTOS
+BufferKeys 	times 60 db 0
+BufferArgs 	times 60 db 0
+
+StatusArg 		db 0
+CounterChars	db 0
+
+SavePointerArgs 	dw 0x0000
+
+; INTERFACE INICIAL DO SHELL
 Os_Shell_Setup:
 	Back_Blue_Screen:
 		mov 	bh, [Background_Color]
@@ -68,6 +92,7 @@ Os_Shell_Setup:
 		mov 	dx, 0x1950 		; DH = 25, CL = 80
 		call 	Create_Panel
 	
+; IMPRIME INFORMAÇÕES DO SHELL
 Print_Labels:
 	mov 	dx, 0x011E 	 ; DH = 01, DL = 30
 	call 	Move_Cursor
@@ -89,20 +114,210 @@ Prt_Help:
 	mov 	si, HelpStr
 	call 	Write_Info
 Cursor_Commands:
-	; TODO: Regras de verificação de Cursor
-	mov 	dx, 0x050C
-	call 	Move_Cursor
+	call 	Cursor.CheckToRollEditor
+	mov 	bx, word[CounterAccess]
+	add 	dl, bl
+	add 	dl, 3
+	cmp 	byte[Quant], 0
+	jna 	Print_Access
+	inc 	dl
 Print_Access:
-	; TODO: Salvar limite de Cursor
+	mov 	byte[LimitCursorBeginX], dl
 	mov 	si, LetterDisk
 	call 	Print_String
 	mov 	si, FolderAccess
 	call 	Print_String
 	mov 	si, SymbolCommands
 	call 	Print_String
-	jmp 	$
 	
-	; TODO: Preparação para Editor do Shell
+	; Set Cursor Shape
+	call 	Show_Cursor
+	call 	VerifyToWrite
+	cmp 	byte[CmdWrite], 1
+	je 		Shell_Editor2
+	
+; IMPLEMENTAÇÃO DA CLI (COMMAND LINE INTERFACE)
+Shell_Editor:
+	mov 	di, BufferKeys
+	mov 	word[SaveAddressString], di
+	call 	Reset_Buffer
+	Shell_Editor2:
+		mov 	byte[CmdWrite], 0
+		mov 	di, BufferArgs
+		mov 	word[SavePointerArgs], di
+		call 	Reset_Buffer
+		mov 	di, BufferKeys
+		mov 	si, Vector.CMD_Names
+		push 	di
+		mov 	di, word[SaveAddressString]
+		Start:
+			mov 	ah, 00h
+			int 	16h
+			cmp 	al, 0x08
+			je 		CheckBackspace
+			cmp 	al, 0x0D
+			je 		Shell_Interpreter
+			cmp 	al, 0x1B
+			je 		List_Commands
+			cmp 	ah, 0x3B
+			je 		ChangeLayout1
+			cmp 	ah, 0x3C
+			je 		ChangeLayout2
+			cmp 	ah, 0x3D
+			je 		ChangeLayout3
+			cmp 	ah, 0x3E
+			je 		ChangeLayout4
+			cmp 	ah, 0x3F
+			je 		ChangeLayout5
+			cmp 	ah, 0x40
+			je 		ChangeLayout3
+			cmp 	ah, 0x50
+			je 		RollEditorToUp
+			cmp 	ah, 0x48
+			je 		RollEditorToDown
+			cmp 	al, 0x20
+			je		AltStatusArg
+			jmp 	SaveChar
+		AltStatusArg:
+			mov 	byte[StatusArg], 1
+			mov 	ah, 0eh
+			int 	10h
+			push 	di
+			push 	ds
+			pop 	es
+			mov 	di, word[SavePointerArgs]
+			stosb
+			mov 	word[SavePointerArgs], di
+			pop 	di
+			jmp 	SaveReturn
+		SaveChar:
+			mov 	ah, 0eh
+			int 	10h
+			push 	di
+			push 	ds
+			pop 	es
+			mov 	di, word[SavePointerArgs]
+			stosb
+			mov 	word[SavePointerArgs], di
+			pop 	di
+			mov 	bl, al
+			cmp 	bl, "."
+			je 		CreateSpaceFile
+			cmp 	bl, "/"
+			je 		IncQuantDirs
+			cmp 	bl, 0x60
+			ja 		Conversion2
+			cmp 	bl, 0x40
+			ja 		Conversion1
+			cmp 	bl, 0x29
+			ja 		ConvertNumber
+			jmp 	SaveReturn
+			
+		IncQuantDirs:
+			inc 	byte[QuantDirs]
+			
+		SaveReturn:
+			stosb
+			cmp 	byte[StatusArg], 1
+			jne 	Start
+			inc 	byte[CounterChars]
+			jmp 	Start
+	
+; FUNCIONALIDADES DA CLI	
+	CheckBackspace:
+		jmp 	Start
+	
+	Shell_Interpreter:
+		jmp 	Start
+	
+	List_Commands:
+		jmp 	Start
+		
+	ChangeLayout1:
+		jmp 	Start
+		
+	ChangeLayout2:
+		jmp 	Start
+		
+	ChangeLayout3:
+		jmp 	Start
+		
+	ChangeLayout4:
+		jmp 	Start
+		
+	ChangeLayout5:
+		jmp 	Start
+		
+	RollEditorToUp:
+		jmp 	Start
+		
+	RollEditorToDown:
+		jmp 	Start
+			
+	CreateSpaceFile:
+		jmp 	Start
+		
+	EraseSpaceFile:
+		jmp 	Start
+		
+	Conversion1:
+		jmp 	Start
+		
+	Conversion2:
+		jmp 	Start
+		
+	ConvertNumber:
+		jmp 	Start
+
+
+VerifyToWrite:
+	cmp 	byte[CmdWrite], 1
+	jne 	RetWrite
+	mov 	si, word[SaveAddressString]
+	call 	Print_String
+	mov 	word[SaveAddressString], di
+RetWrite:
+	ret
+	
+Cursor.CheckToRollEditor:
+	pusha
+	mov 	dh, byte[CursorRaw]
+	cmp 	dh, byte[LimitCursorFinalY]
+	ja 		RollEditor
+	mov 	dl, byte[CursorCol]
+	call 	Move_Cursor
+	jmp 	RetCheck
+RollEditor:
+	mov 	ah, 06h
+	call 	RollingEditor
+	mov 	dh, byte[LimitCursorFinalY]
+	mov 	byte[CursorRaw], dh
+	mov 	dl, byte[CursorCol]
+	call 	Move_Cursor
+RetCheck:
+	popa
+	mov 	dl, byte[CursorCol]
+ret
+
+RollingEditor:
+	pusha
+	mov 	al, 1
+	mov 	bh, [Backeditor_Color]
+	mov 	cx, 0x050C
+	mov 	dx, 0x1643
+	int 	10h
+	popa
+ret
+
+Reset_Buffer:
+	pusha
+	mov 	cx, 60
+	Reset:
+		mov 	byte[di], 0
+		inc 	di
+		loop 	Reset
+	popa
+ret
 		
 		
 NameSystem 	db "KiddieOS Shell ",VERSION,0

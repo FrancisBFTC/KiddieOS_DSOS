@@ -64,6 +64,9 @@ LowStart:
 			jnz .CKPTFound       ; Nós encontramos a partição ativa
 			add bx, 0x10         ; Desloca 16 bytes
 			loop .CKPTLoop
+			mov ah, 0x0e
+			mov al, 'A'
+			int 0x10
             jmp ERROR
 		.CKPTFound:
 			mov word[PartOffset], bx     ; Salve o offset da partição ativa
