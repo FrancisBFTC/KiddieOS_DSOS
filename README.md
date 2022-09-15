@@ -13,5 +13,6 @@ Aqui serão colocados novas versões do KiddieOS:
    * <a href="https://github.com/FrancisBFTC/KiddieOS_DSOS/tree/kiddieos-v1.2.1.1"> Version 1.2.1.1 </a>
    * <a href="https://github.com/FrancisBFTC/KiddieOS_DSOS/tree/kiddieos-v1.2.2"> Version 1.2.2 </a>
    * <a href="https://github.com/FrancisBFTC/KiddieOS_DSOS/tree/kiddieos-v1.2.3"> Version 1.2.3 </a>
+   * <a href="https://github.com/FrancisBFTC/KiddieOS_DSOS/tree/kiddieos-v1.2.4"> Version 1.2.4 </a>
   
 
