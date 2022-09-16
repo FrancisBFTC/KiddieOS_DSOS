@@ -32,6 +32,8 @@ CounterAccess 	db 0x0001
 Quant 			db 0
 CmdWrite 		db 0
 QuantDirs 		db 0
+IsFile			db 0
+ExtCounter 		db 0
 
 ; STRINGS DE COMANDOS
 SaveAddressString 	dw 0x0000
@@ -42,6 +44,7 @@ BufferArgs 	times 60 db 0
 
 StatusArg 		db 0
 CounterChars	db 0
+CounterChars1 	db 0
 
 SavePointerArgs 	dw 0x0000
 
@@ -205,19 +208,22 @@ Shell_Editor:
 			je 		CreateSpaceFile
 			cmp 	bl, "/"
 			je 		IncQuantDirs
-			cmp 	bl, 0x60
-			ja 		Conversion2
-			cmp 	bl, 0x40
-			ja 		Conversion1
-			cmp 	bl, 0x29
-			ja 		ConvertNumber
+			;cmp 	bl, 0x60
+			;ja 		Conversion2
+			;cmp 	bl, 0x40
+			;ja 		Conversion1
+			;cmp 	bl, 0x29
+			;ja 		ConvertNumber
 			jmp 	SaveReturn
 			
 		IncQuantDirs:
 			inc 	byte[QuantDirs]
 			
+		IsDirectory:
+			mov 	byte[IsFile], 0
 		SaveReturn:
-			stosb
+			mov 	byte[di], al
+			inc 	di
 			cmp 	byte[StatusArg], 1
 			jne 	Start
 			inc 	byte[CounterChars]
@@ -230,7 +236,7 @@ Shell_Editor:
 		je 		Start
 		dec 	word[SavePointerArgs]
 		dec 	di
-		; call 	EraseSpaceFile
+		call 	EraseSpaceFile
 		mov 	byte[di], 0
 		mov 	ah, 0eh
 		int 	10h
@@ -238,12 +244,23 @@ Shell_Editor:
 		int 	10h
 		mov 	al, 0x08
 		int 	10h
-		cmp 	byte[StatusArg], 1
-		jne 	Start
+		;cmp 	byte[StatusArg], 1
+		;jne 	Start
+		dec 	byte[CounterChars]
 		jmp 	Start
 	
 	Shell_Interpreter:
-		jmp 	Start
+		add 	byte[CursorRaw], 1
+		call 	Cursor.CheckToRollEditor
+		mov 	si, BufferKeys
+		call 	Print_String
+		
+		mov 	byte[CounterChars], 0
+		mov 	byte[CounterChars1], 0
+		
+		add 	byte[CursorRaw], 1
+		jmp 	Cursor_Commands
+		;jmp 	Start
 	
 	List_Commands:
 		jmp 	Start
@@ -274,10 +291,62 @@ Shell_Editor:
 		jmp 	Start
 			
 	CreateSpaceFile:
+		cmp 	byte[di - 1], "."
+		je 		IsDirectory
+		cmp 	byte[di - 1], " "
+		je 		IsDirectory
+		mov 	byte[IsFile], 1
+		cmp 	byte[CounterChars], 8
+		je 		Start
+		mov 	bl, byte[CounterChars]
+		dec 	bl
+		mov 	byte[CounterChars1], bl
+		mov 	cl, 8
+		sub 	cl, bl
+		xor 	ch, ch
+		FillSpaceFile:
+			mov 	byte[di], " "
+			inc 	di
+			loop 	FillSpaceFile
 		jmp 	Start
 		
+		
 	EraseSpaceFile:
-		jmp 	Start
+		cmp 	byte[IsFile], 1
+		jne 	CheckSpaceArg
+		inc 	byte[ExtCounter]
+		cmp 	byte[di], " "
+		jne 	Possible8Chars
+	BackLastChar:
+		dec 	di
+		cmp 	byte[di], " "
+		je 		BackLastChar
+		xor 	cx, cx
+		mov 	bl, byte[CounterChars1]
+		mov 	cl, 8
+		sub 	cl, bl
+		push 	di
+	EraseSpaceDot:
+		inc 	di
+		mov 	byte[di], 0
+		loop 	EraseSpaceDot
+		pop 	di
+	ChangeAttrib:
+		inc 	di
+		inc 	byte[CounterChars]
+		mov 	byte[IsFile], 0
+		mov 	byte[ExtCounter], 0
+	CheckSpaceArg:
+		cmp 	byte[di], " "
+		jne 	RetEraseSpaces
+		mov 	byte[StatusArg], 0
+		mov 	byte[CounterChars],0
+		jmp 	RetEraseSpaces
+	Possible8Chars:
+		cmp 	byte[ExtCounter], 4
+		je 		ChangeAttrib
+	RetEraseSpaces:
+		ret
 		
 	Conversion1:
 		jmp 	Start
