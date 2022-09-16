@@ -225,6 +225,22 @@ Shell_Editor:
 	
 ; FUNCIONALIDADES DA CLI	
 	CheckBackspace:
+		call 	Get_Cursor
+		cmp 	dl, byte[LimitCursorBeginX]
+		je 		Start
+		dec 	word[SavePointerArgs]
+		dec 	di
+		; call 	EraseSpaceFile
+		mov 	byte[di], 0
+		mov 	ah, 0eh
+		int 	10h
+		mov 	al, [di]
+		int 	10h
+		mov 	al, 0x08
+		int 	10h
+		cmp 	byte[StatusArg], 1
+		jne 	Start
+		dec 	byte[CounterChars]
 		jmp 	Start
 	
 	Shell_Interpreter:
@@ -249,9 +265,13 @@ Shell_Editor:
 		jmp 	Start
 		
 	RollEditorToUp:
+		mov 	ah, 06h
+		call 	RollingEditor
 		jmp 	Start
 		
 	RollEditorToDown:
+		mov 	ah, 07h
+		call 	RollingEditor
 		jmp 	Start
 			
 	CreateSpaceFile:
